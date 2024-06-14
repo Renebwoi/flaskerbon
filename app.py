@@ -66,7 +66,13 @@ def books():
         #     return jsonify(books_list)
         # else:
         #     'Nothing Found', 404
-        cursor = 
+        cursor = conn.execute("SELECT * FROM book")
+        books = [
+            dict(id=row[0], author=row[1], language=row[2], title=row[3])
+            for row in cursor.fetchall()
+        ]
+        if books is not None:
+            return jsonify(books)                      
             
     if request.method == 'POST':
         new_author =request.form['author']
