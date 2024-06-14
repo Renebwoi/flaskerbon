@@ -66,7 +66,7 @@ def books():
         #     return jsonify(books_list)
         # else:
         #     'Nothing Found', 404
-        cursor
+        cursor = 
             
     if request.method == 'POST':
         new_author =request.form['author']
