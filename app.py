@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify
+from pymongo import MongoClient 
 import json
 import sqlite3
 
@@ -56,73 +57,111 @@ orders_list = [{
     }
 ]
 
-def db_connection():
-    conn = None
-    try:
-        conn = sqlite3.connect('books.sqlite')
-    except sqlite3.error as e:
-        print(e)
-    return conn
+# def db_connection():
+#     conn = None
+#     try:
+#         conn = sqlite3.connect('books.sqlite')
+#     except sqlite3.error as e:
+#         print(e)
+#     return conn
+
+# the database connection. it can return the connection to two collections:
+# the books databas and orders databas
+def db_connection(databas):
+    client = MongoClient('mongodb://localhost:27017/') 
+    db = client['bookstore'] 
+    collection = db['books']
+    collection2 = db['orders']
+    # db_books_list = json.dumps(books_list)
+    # collection.insert_many(books_list)
+    # collection2.insert_one({
+    #     'username': 'rene',
+    #     'book_id': 3,
+    #     'status':'completed',
+    #     'order_id': 1
+    #     })
+    if databas == 'books':
+        return collection
+    elif databas == 'orders':
+        return collection2
+
+
 
 @app.route('/books', methods=['GET', 'POST'])
 def books():
-    conn = db_connection()
-    cursor = conn.cursor()
+    conn = db_connection('books')
     
     if request.method == 'GET':
-        if len(books_list) > 0:
-            return jsonify(books_list)
+        # got complex really quick
+        # if the document in collection is not 0, get a cursor to iterate over the collection, store each book in doc_array and return 
+        # doc array
+        conn_count = int(conn.count_documents({}) )
+        if conn_count > 0:
+            cursor = conn.find({ })
+            doc_array = []
+            for books in cursor:
+                doc_array.append(books)
+            return f'{doc_array}'
         else:
-            'Nothing Found', 404
-        # cursor = conn.execute("SELECT * FROM book")
-        # books = [
-        #     dict(id=row[0], author=row[1], language=row[2], title=row[3])
-        #     for row in cursor.fetchall()
-        # ]
-        # if books is not None:
-        #     return jsonify(books)                      
+            'Nothing Found', 404                    
             
     if request.method == 'POST':
         new_author =request.form['author']
         new_lang = request.form['language']
         new_title = request.form['title']
-        iD = books_list[-1]['id']+1
+        # this print outputs the id of the last document. conn.find gets all doc in conn, 
+        # .sort arranges them in descending order(from last to first),
+        # .limit returns only one, .next because the shit returns a cursor😡...
+        # 😑 then id to give me only the id. omit that part to get the entire document
+        # print("here",conn.find({ }).sort({'id':-1}).limit(1).next()['id'])
+        iD = conn.find({ }).sort({'id':-1}).limit(1).next()['id']+1
         
-        # creating an object with these values and appending to the books_list
+        # creating an object with these values and appending to the books_list(or the collection)
         new_obj = {
             'id': iD,
             'author': new_author,
             'language': new_lang,
             'title': new_title
         }
-        books_list.append(new_obj)
-        return jsonify(books_list), 201
+        
+        # books_list.append(new_obj)
+        conn.insert_one(new_obj)
+        
+        # just returning the collection. When i find a better way, i will change here 
+            
+        return f'{new_title} by {new_author} has been added with id {iD}', 201
+        
+        # return jsonify(books_list), 201
     
 @app.route('/book/<int:id>', methods=['GET','PUT','DELETE'])
 def single_book(id):
+    conn = db_connection('books')
     if request.method == 'GET':
-        for book in books_list:
-            if book['id'] == id:
-                return jsonify(book)
-            pass
+        selected_book = conn.find_one({'id':id})
+        return f'{selected_book}'
+        # # get all documents in collection, returns a cursor
+        # cursor = conn.find({ })
+        # # print("cursor is", cursor.next())
+        # conn_count = int(conn.count_documents({}) ) #lenght of the collection
+        # # loop over conn_count while pressing next on the cursor.
+        # # when the cursor is same as given id, the doc value will be the doc at that id
+        # # potential synchronicity issues in this, to be fixed later 
+        # for book_num in range(conn_count):
+        #     doc = cursor.next()
+        #     if book_num == id:
+        #         return f'{doc}'
+        #     pass
     if request.method == 'PUT':
-        for book in books_list:
-            if book['id'] == id:
-                book['author'] = request.form['author']
-                book['language'] = request.form['language']
-                book['title'] = request.form['title']
-                updated_book = {
-                    'id': id,
-                    'author': book["author"],
-                    'language': book["language"],
-                    'title': book["title"]
-                }
-                return jsonify(updated_book)
+        selected_book = conn.find_one({'id':id})
+        selected_book['author'] = request.form['author']
+        selected_book['language'] = request.form['language']
+        selected_book['title'] = request.form['title']
+        return f"Book with name {selected_book['title']} and id {selected_book['id']} has been updated"
+        
     if request.method == 'DELETE':
-        for index, book in enumerate(books_list):
-            if book['id'] == id:
-                books_list.pop(index)
-                return jsonify(books_list)
+        selected_book = conn.find_one_and_delete({'id':id})
+        return f"Book with name {selected_book['title']} and id {selected_book['id']} has been deleted"
+        
             
 # to place an order
 @app.route('/order', methods=['POST','GET','PUT','DELETE'])
