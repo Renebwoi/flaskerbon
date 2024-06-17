@@ -2,6 +2,8 @@ from flask import Flask, request, jsonify
 from pymongo import MongoClient 
 import json
 import sqlite3
+from dotenv import load_dotenv
+import os
 
 app = Flask(__name__)
 
@@ -68,7 +70,9 @@ orders_list = [{
 # the database connection. it can return the connection to two collections:
 # the books databas and orders databas
 def db_connection(databas):
-    client = MongoClient('mongodb://localhost:27017/') 
+    load_dotenv()
+    database_url = os.getenv('DATABASE_URI')
+    client = MongoClient(database_url) 
     db = client['bookstore'] 
     collection = db['books']
     collection2 = db['orders']
