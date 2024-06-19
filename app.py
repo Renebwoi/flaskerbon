@@ -182,10 +182,10 @@ def orders():
             cursor = conn.find({ })
             doc_array = []
             for books in cursor:
-                doc_array.append(books)
+                doc_array.append(cursor.next())
             return f'{doc_array}'
         else:
-            'Nothing Found', 404  
+            return 'Nothing Found', 404  
         
 # function to generate book summary. Later iterations will be to support file upload for better summary
 # and pay for OpenAI api so i can use that instead. For now the post request can simply ask for a 
@@ -219,8 +219,9 @@ def summary():
         ]
         )
 
-        question = request.form['question']
-        response = chat_session.send_message(question)
+        book_name = request.form["bookname"]
+        author = request.form['author']
+        response = chat_session.send_message(f"In one paragraph only, summarize the book {book_name} by {author}. Don't spoil the books story entirely. Just return a bit of the story along with some engaging sentences on it's theme")
 
         return response.text       
 
