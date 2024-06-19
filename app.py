@@ -159,7 +159,7 @@ def single_book(id):
         
             
 # to place an order
-@app.route('/order', methods=['POST','GET','PUT','DELETE'])
+@app.route('/order', methods=['POST','GET'])
 def orders():
     conn = db_connection('orders')
     if request.method == 'POST':
@@ -185,7 +185,26 @@ def orders():
                 doc_array.append(cursor.next())
             return f'{doc_array}'
         else:
-            return 'Nothing Found', 404  
+            return 'Nothing Found', 404
+        
+        #not complete, the order is not yet updated. finish this later same for books 
+@app.route('/order/<int:id>', methods=['GET','PUT','DELETE'])
+def single_order(id):
+    conn = db_connection('orders')
+    if request.method == 'GET':
+        selected_order = conn.find_one({'order_id':id})
+        return f'{selected_order}'
+    
+    if request.method == 'PUT':
+        selected_order = conn.find_one({'order_id':id})
+        selected_order['username'] = request.form['username']
+        selected_order['book_id'] = request.form['book_id']
+        selected_order['status'] = request.form['status'] or "ordered"
+        return f"Order with id {selected_order['order_id']} has been updated"
+     
+    if request.method == 'DELETE':
+        selected_order = conn.find_one_and_delete({'order_id':id})
+        return f"Order has been deleted"
         
 # function to generate book summary. Later iterations will be to support file upload for better summary
 # and pay for OpenAI api so i can use that instead. For now the post request can simply ask for a 
@@ -225,7 +244,8 @@ def summary():
 
         return response.text       
 
-
+# future additions would be to store the response along with book details so we dont 
+# have to generate a new summary for every request
 
 
 
